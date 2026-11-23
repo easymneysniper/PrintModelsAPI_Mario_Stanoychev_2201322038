@@ -1,26 +1,10 @@
 import asyncio
-from pathlib import Path
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-
-
-@pytest.fixture
-def database(tmp_path):
-    from backend.database import make_engine
-
-    engine = make_engine(f"sqlite:///{tmp_path / 'test.db'}")
-    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
-    with engine.begin() as connection:
-        config.attributes["connection"] = connection
-        command.upgrade(config, "head")
-    yield engine
-    engine.dispose()
 
 
 def test_swagger_and_health():
