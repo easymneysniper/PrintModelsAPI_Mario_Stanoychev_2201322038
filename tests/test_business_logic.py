@@ -10,6 +10,7 @@ def create(api, path, data):
 def model_data(designer_id, **changes):
     return {
         "name": "Куб", "instructions": "Печат със слой 0.2 mm",
+        "difficulty": "easy",
         "print_time_minutes": 30, "copies": 4, "designer_id": designer_id,
         "category_id": None, **changes,
     }

@@ -11,6 +11,7 @@ RESOURCES = ("designers", "categories", "materials", "print-models")
 def model_data(owner_id=1, **changes):
     return {
         "name": "Куб", "instructions": "Печат със слой 0.2 mm",
+        "difficulty": "easy",
         "print_time_minutes": 20, "copies": 1, "designer_id": owner_id,
         "category_id": None, **changes,
     }

@@ -46,6 +46,7 @@ class MaterialRead(MaterialCreate):
 
 class PrintModelCreate(NamedCreate):
     instructions: NonEmptyText
+    difficulty: Literal["easy", "medium", "hard"]
     print_time_minutes: PositiveInteger
     copies: PositiveInteger
     designer_id: PositiveInteger

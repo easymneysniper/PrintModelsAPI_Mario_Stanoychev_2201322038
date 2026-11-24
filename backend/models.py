@@ -79,6 +79,11 @@ class PrintModel(Base):
     name: Mapped[str] = mapped_column(String)
     name_key: Mapped[str] = mapped_column(String)
     instructions: Mapped[str] = mapped_column(Text)
+    difficulty: Mapped[str] = mapped_column(
+        String,
+        CheckConstraint("difficulty IN ('easy', 'medium', 'hard')", name="ck_print_models_difficulty"),
+        server_default="easy",
+    )
     print_time_minutes: Mapped[int]
     copies: Mapped[int]
     designer_id: Mapped[int] = mapped_column(
