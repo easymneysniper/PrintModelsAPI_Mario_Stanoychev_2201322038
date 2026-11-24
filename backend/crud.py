@@ -1,9 +1,10 @@
+from math import isfinite
 from typing import TypeVar
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from backend import models, schemas
 from backend.database import Base
@@ -107,8 +108,20 @@ def delete_material(db: Session, material_id: int) -> None:
     _commit(db, "Material is used by a print model and cannot be deleted.")
 
 
-def list_print_models(db: Session) -> list[models.PrintModel]:
-    return list(db.scalars(select(models.PrintModel).order_by(models.PrintModel.id)))
+def list_print_models(
+    db: Session,
+    name: str | None = None,
+    category_id: int | None = None,
+    max_print_time: int | None = None,
+) -> list[models.PrintModel]:
+    statement = select(models.PrintModel)
+    if name is not None:
+        statement = statement.where(models.PrintModel.name_key.contains(name.strip().casefold(), autoescape=True))
+    if category_id is not None:
+        statement = statement.where(models.PrintModel.category_id == category_id)
+    if max_print_time is not None:
+        statement = statement.where(models.PrintModel.print_time_minutes <= max_print_time)
+    return list(db.scalars(statement.order_by(models.PrintModel.id)))
 
 
 def get_print_model(db: Session, print_model_id: int) -> models.PrintModel:
@@ -138,3 +151,64 @@ def update_print_model(db: Session, print_model_id: int, data: schemas.PrintMode
 def delete_print_model(db: Session, print_model_id: int) -> None:
     db.delete(get_print_model(db, print_model_id))
     _commit(db, "Print model cannot be deleted because related data changed.")
+
+
+def list_designer_models(db: Session, designer_id: int) -> list[models.PrintModel]:
+    get_designer(db, designer_id)
+    statement = select(models.PrintModel).where(models.PrintModel.designer_id == designer_id)
+    return list(db.scalars(statement.order_by(models.PrintModel.id)))
+
+
+def list_model_materials(db: Session, print_model_id: int) -> list[models.PrintModelMaterial]:
+    get_print_model(db, print_model_id)
+    statement = (
+        select(models.PrintModelMaterial)
+        .where(models.PrintModelMaterial.print_model_id == print_model_id)
+        .options(joinedload(models.PrintModelMaterial.material))
+        .order_by(models.PrintModelMaterial.material_id)
+    )
+    return list(db.scalars(statement))
+
+
+def add_model_material(
+    db: Session, print_model_id: int, data: schemas.ModelMaterialCreate,
+) -> models.PrintModelMaterial:
+    get_print_model(db, print_model_id)
+    get_material(db, data.material_id)
+    link = models.PrintModelMaterial(print_model_id=print_model_id, **data.model_dump())
+    return _save(db, link, "Material is already attached to this print model.")
+
+
+def _get_model_material(db: Session, print_model_id: int, material_id: int) -> models.PrintModelMaterial:
+    get_print_model(db, print_model_id)
+    link = db.get(models.PrintModelMaterial, (print_model_id, material_id))
+    if link is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Material is not attached to this print model.")
+    return link
+
+
+def update_model_material(
+    db: Session, print_model_id: int, material_id: int, data: schemas.MaterialAmount,
+) -> models.PrintModelMaterial:
+    link = _get_model_material(db, print_model_id, material_id)
+    link.quantity = data.quantity
+    link.unit = data.unit
+    return _save(db, link, "Material association conflicts with related data.")
+
+
+def remove_model_material(db: Session, print_model_id: int, material_id: int) -> None:
+    db.delete(_get_model_material(db, print_model_id, material_id))
+    _commit(db, "Material association cannot be removed because related data changed.")
+
+
+def get_scaled_print_model(db: Session, print_model_id: int, copies: int) -> schemas.ScaledPrintModelRead:
+    model = get_print_model(db, print_model_id)
+    ratio = copies / model.copies
+    materials = [schemas.ModelMaterialRead.model_validate(link) for link in list_model_materials(db, print_model_id)]
+    for material in materials:
+        material.quantity *= ratio
+        if not isfinite(material.quantity) or material.quantity <= 0:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Scaled quantity is outside the supported numeric range.")
+    data = schemas.PrintModelRead.model_validate(model).model_dump()
+    data["copies"] = copies
+    return schemas.ScaledPrintModelRead(**data, materials=materials)

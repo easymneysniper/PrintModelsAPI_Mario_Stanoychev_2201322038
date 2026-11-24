@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Path, Response, status
+from fastapi import APIRouter, Depends, Path, Query, Response, status
 from sqlalchemy.orm import Session
 
 from backend import crud, schemas
@@ -10,6 +10,7 @@ from backend.database import get_db
 router = APIRouter()
 DbSession = Annotated[Session, Depends(get_db)]
 ResourceId = Annotated[int, Path(gt=0, le=schemas.SQLITE_MAX_INTEGER)]
+FilterInteger = Annotated[int | None, Query(gt=0, le=schemas.SQLITE_MAX_INTEGER)]
 
 
 @router.get("/designers", response_model=list[schemas.DesignerRead], tags=["Designers"])
@@ -91,8 +92,13 @@ def delete_material(material_id: ResourceId, db: DbSession) -> Response:
 
 
 @router.get("/print-models", response_model=list[schemas.PrintModelRead], tags=["Print Models"])
-def list_print_models(db: DbSession):
-    return crud.list_print_models(db)
+def list_print_models(
+    db: DbSession,
+    name: str | None = None,
+    category_id: FilterInteger = None,
+    max_print_time: FilterInteger = None,
+):
+    return crud.list_print_models(db, name, category_id, max_print_time)
 
 
 @router.post("/print-models", response_model=schemas.PrintModelRead, status_code=status.HTTP_201_CREATED, tags=["Print Models"])
@@ -114,3 +120,38 @@ def update_print_model(print_model_id: ResourceId, data: schemas.PrintModelCreat
 def delete_print_model(print_model_id: ResourceId, db: DbSession) -> Response:
     crud.delete_print_model(db, print_model_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/designers/{designer_id}/print-models", response_model=list[schemas.PrintModelRead], tags=["Designers"])
+def list_designer_models(designer_id: ResourceId, db: DbSession):
+    return crud.list_designer_models(db, designer_id)
+
+
+@router.get("/print-models/{print_model_id}/materials", response_model=list[schemas.ModelMaterialRead], tags=["Model Materials"])
+def list_model_materials(print_model_id: ResourceId, db: DbSession):
+    return crud.list_model_materials(db, print_model_id)
+
+
+@router.post("/print-models/{print_model_id}/materials", response_model=schemas.ModelMaterialRead, status_code=status.HTTP_201_CREATED, tags=["Model Materials"])
+def add_model_material(print_model_id: ResourceId, data: schemas.ModelMaterialCreate, db: DbSession):
+    return crud.add_model_material(db, print_model_id, data)
+
+
+@router.put("/print-models/{print_model_id}/materials/{material_id}", response_model=schemas.ModelMaterialRead, tags=["Model Materials"])
+def update_model_material(print_model_id: ResourceId, material_id: ResourceId, data: schemas.MaterialAmount, db: DbSession):
+    return crud.update_model_material(db, print_model_id, material_id, data)
+
+
+@router.delete("/print-models/{print_model_id}/materials/{material_id}", status_code=status.HTTP_204_NO_CONTENT, tags=["Model Materials"])
+def remove_model_material(print_model_id: ResourceId, material_id: ResourceId, db: DbSession) -> Response:
+    crud.remove_model_material(db, print_model_id, material_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/print-models/{print_model_id}/scaled", response_model=schemas.ScaledPrintModelRead, tags=["Print Models"])
+def get_scaled_print_model(
+    print_model_id: ResourceId,
+    db: DbSession,
+    copies: Annotated[int, Query(gt=0, le=schemas.MAX_SCALED_COPIES)],
+):
+    return crud.get_scaled_print_model(db, print_model_id, copies)
