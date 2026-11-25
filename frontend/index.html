@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="bg">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Каталог на 3D модели за печат, дизайнери и материали.">
+  <title>Каталог за 3D печат</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Към съдържанието</a>
+  <div class="app-layout">
+    <header class="site-header">
+      <div class="masthead">
+        <a class="brand" href="/" aria-label="Слой — каталог за 3D печат">
+          <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><path d="m4 15 20-10 20 10-20 10L4 15Zm0 9 20 10 20-10M4 33l20 10 20-10" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg>
+          <span>слой<span class="brand-caption">каталог за 3D печат</span></span>
+        </a>
+        <a class="api-link" href="/docs" target="_blank" rel="noopener">API / Swagger</a>
+      </div>
+      <nav aria-label="Раздели">
+        <button type="button" class="nav-item active" data-view="print-models" aria-current="page">Модели <span id="count-print-models">0</span></button>
+        <button type="button" class="nav-item" data-view="designers">Дизайнери <span id="count-designers">0</span></button>
+        <button type="button" class="nav-item" data-view="categories">Категории <span id="count-categories">0</span></button>
+        <button type="button" class="nav-item" data-view="materials">Материали <span id="count-materials">0</span></button>
+      </nav>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <header class="page-header">
+        <h1 id="page-title">Модели за печат</h1>
+        <button id="create-button" class="primary" type="button">Добави модел</button>
+      </header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <div id="page-error" class="error-message" role="alert" hidden></div>
+      <noscript><p class="error-message">За работа с каталога е необходим включен JavaScript.</p></noscript>
+
+      <section id="catalog-view" aria-label="Каталог">
+        <form id="filters" class="filters">
+          <label class="search-field">Име на модел<input name="name" type="search" placeholder="Търси в каталога"></label>
+          <label>Категория<select id="filter-category" name="category_id"><option value="">Всички категории</option></select></label>
+          <label>Време до (мин.)<input name="max_print_time" type="number" min="1" step="1" placeholder="Без ограничение"></label>
+          <div class="filter-actions"><button class="primary" type="submit">Търси</button><button id="reset-filters" type="button">Изчисти</button></div>
+        </form>
+        <div class="section-heading"><h2>Модели в каталога</h2><span id="result-count" class="muted" aria-live="polite"></span></div>
+        <div class="model-columns" aria-hidden="true"><span>Модел / автор</span><span>Категория</span><span>Трудност</span><span>Печат</span><span>Действия</span></div>
+        <div id="model-list" class="model-list" aria-busy="true"></div>
+      </section>
+
+      <section id="registry-view" aria-label="Списък със записи" hidden>
+        <div id="registry-list" class="registry-list"></div>
+      </section>
+      <footer class="page-footer"><span>слой / 3D каталог</span><span>Уеб сървърно програмиране · ПУ</span></footer>
+    </main>
+  </div>
+
+  <dialog id="editor-dialog" aria-labelledby="editor-title">
+    <form id="editor-form">
+      <div class="dialog-heading"><h2 id="editor-title">Добавяне</h2><button class="icon-button" type="button" data-close="editor-dialog" aria-label="Затвори формата">×</button></div>
+      <div id="editor-fields" class="form-fields"></div>
+      <p id="editor-error" class="error-message" role="alert" hidden></p>
+      <div class="dialog-actions"><button type="button" data-close="editor-dialog">Отказ</button><button class="primary" type="submit">Запази</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="details-dialog" class="wide-dialog" aria-labelledby="details-title">
+    <div class="dialog-heading">
+      <div class="details-heading"><p id="details-id" class="details-id"></p><h2 id="details-title"></h2></div>
+      <button class="icon-button" type="button" data-close="details-dialog" aria-label="Затвори детайлите">×</button>
+    </div>
+    <div class="details-layout">
+      <div class="details-main">
+        <div id="details-body"></div>
+        <section class="detail-section">
+          <div class="materials-heading"><h3>Материали</h3><span id="material-count"></span></div>
+          <p class="muted" id="materials-hint"></p>
+          <div id="model-materials" class="material-list"></div>
+          <form id="material-form" class="material-form">
+            <label>Материал<select name="material_id" id="link-material" required></select></label>
+            <label>Количество<input name="quantity" type="number" min="0" step="any" required></label>
+            <label>Единица<select name="unit"><option value="g">g</option><option value="m">m</option><option value="ml">ml</option></select></label>
+            <div class="material-actions"><button id="save-material" class="primary" type="submit">Добави</button><button id="cancel-material" type="button" hidden>Отказ</button></div>
+          </form>
+          <p id="material-error" class="error-message" role="alert" hidden></p>
+          <p class="muted small">Нов материал се създава от раздел „Материали“.</p>
+        </section>
+      </div>
+      <aside class="scale-section" aria-labelledby="scale-title">
+        <h3 id="scale-title">Преизчисляване</h3>
+        <p class="muted">Записаните количества не се променят.</p>
+        <form id="scale-form" class="inline-form"><label>Брой копия (1–88)<input name="copies" type="number" min="1" max="88" step="1" value="1" required></label><button type="submit">Преизчисли</button></form>
+        <p id="scale-error" class="error-message" role="alert" hidden></p>
+        <div id="scale-result" aria-live="polite"></div>
+      </aside>
+    </div>
+  </dialog>
+
+  <dialog id="designer-dialog" class="wide-dialog" aria-labelledby="designer-title">
+    <div class="dialog-heading"><h2 id="designer-title"></h2><button class="icon-button" type="button" data-close="designer-dialog" aria-label="Затвори моделите на дизайнера">×</button></div>
+    <p id="designer-error" class="error-message" role="alert" hidden></p>
+    <div id="designer-models" class="model-list"></div>
+  </dialog>
+</body>
+</html>
