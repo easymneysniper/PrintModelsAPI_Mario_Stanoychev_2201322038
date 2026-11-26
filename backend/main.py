@@ -5,6 +5,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.exceptions import AppError
 from backend.routes import router
 
 
@@ -30,6 +31,11 @@ async def validation_error_handler(request: Request, error: RequestValidationErr
         for item in error.errors()
     ]
     return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content={"detail": details})
+
+
+@app.exception_handler(AppError)
+def handle_exception(request: Request, error: AppError) -> JSONResponse:
+    return JSONResponse(status_code=error.status_code, content={"message": error.message})
 
 
 @app.get("/health", tags=["System"])

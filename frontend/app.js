@@ -59,7 +59,7 @@ async function api(path, method = "GET", data) {
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(`${validationMessage(body.detail)} (HTTP ${response.status})`);
+    throw new Error(`${validationMessage(body.message ?? body.detail)} (HTTP ${response.status})`);
   }
   return response.status === 204 ? null : response.json();
 }

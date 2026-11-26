@@ -69,7 +69,9 @@ def test_swagger_documents_required_difficulty(api):
     for name in ("PrintModelCreate", "PrintModelRead", "ScaledPrintModelRead"):
         schema = schemas[name]
         assert "difficulty" in schema["required"]
-        assert schema["properties"]["difficulty"]["enum"] == ["easy", "medium", "hard"]
+        difficulty_schema = schema["properties"]["difficulty"]
+        enum_name = difficulty_schema["$ref"].rsplit("/", 1)[-1]
+        assert schemas[enum_name]["enum"] == ["easy", "medium", "hard"]
 
 
 @pytest.mark.parametrize("difficulty", ("invalid", "Easy", "", None))

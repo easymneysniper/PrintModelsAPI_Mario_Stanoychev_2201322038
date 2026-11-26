@@ -69,7 +69,8 @@ def test_missing_record_returns_404(api, resource, method):
     kwargs = {"json": data} if method == "PUT" else {}
     response = api(method, f"/{resource}/999", **kwargs)
     assert response.status_code == 404
-    assert isinstance(response.json()["detail"], str)
+    assert set(response.json()) == {"message"}
+    assert isinstance(response.json()["message"], str)
 
 
 @pytest.mark.parametrize("resource", RESOURCES)
